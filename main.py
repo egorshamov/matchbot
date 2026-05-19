@@ -42,7 +42,7 @@ likes = {}
 matches = {}
 
 # =========================================
-# LOAD
+# LOAD USERS
 # =========================================
 
 def load_users():
@@ -125,7 +125,6 @@ def skip_markup():
     )
 
     markup.add("⏭ Пропустить")
-
     markup.add("↩️ Назад")
 
     return markup
@@ -188,7 +187,24 @@ def start(message):
 # =========================================
 
 @bot.message_handler(
-    func=lambda m: str(m.chat.id) in user_states
+    func=lambda m:
+    str(m.chat.id) in user_states
+    and (
+        m.content_type != "text"
+        or m.text not in [
+            "🔍 Найти",
+            "❤️ Лайк",
+            "⏭ Следующий",
+            "👤 Профиль",
+            "📊 Онлайн",
+            "🔥 Мои MATCH",
+            "✏️ Изменить",
+            "🚫 Жалоба",
+            "🗑 Удалить профиль",
+            "❌ Выйти",
+            "↩️ Назад"
+        ]
+    )
 )
 def register(message):
 
@@ -370,6 +386,27 @@ def register(message):
         )
 
 # =========================================
+# BACK BUTTON
+# =========================================
+
+@bot.message_handler(
+    func=lambda m: m.text == "↩️ Назад"
+)
+def back_button(message):
+
+    user_id = str(message.chat.id)
+
+    if user_id in user_states:
+
+        del user_states[user_id]
+
+    bot.send_message(
+        message.chat.id,
+        "↩️ Возврат в меню",
+        reply_markup=menu()
+    )
+
+# =========================================
 # PHOTO
 # =========================================
 
@@ -378,9 +415,7 @@ def photo_handler(message):
 
     user_id = str(message.chat.id)
 
-    # =====================================
     # REGISTER PHOTO
-    # =====================================
 
     if user_id in user_states:
 
@@ -400,9 +435,7 @@ def photo_handler(message):
 
             return
 
-    # =====================================
     # CHAT PHOTO
-    # =====================================
 
     if message.chat.id in chat_pairs:
 
@@ -623,6 +656,9 @@ def search(message):
 
     user_id = message.chat.id
 
+    if str(user_id) in user_states:
+        del user_states[str(user_id)]
+
     if user_id in chat_pairs:
 
         bot.send_message(
@@ -671,8 +707,6 @@ def search(message):
             f"{user_data['bio']}"
         )
 
-        # USER
-
         if partner_data["photo"]:
 
             bot.send_photo(
@@ -687,8 +721,6 @@ def search(message):
                 user_id,
                 text_for_user
             )
-
-        # PARTNER
 
         if user_data["photo"]:
 
@@ -764,9 +796,7 @@ def like(message):
         "❤️ Лайк отправлен"
     )
 
-    # =====================================
     # MATCH
-    # =====================================
 
     if (
         user_id in likes
@@ -927,21 +957,6 @@ def report(message):
         "🚫 Жалоба отправлена"
     )
 
-    real_partner = chat_pairs[user_id]
-
-    chat_pairs.pop(user_id, None)
-    chat_pairs.pop(real_partner, None)
-
-    bot.send_message(
-        real_partner,
-        "❌ Диалог завершён"
-    )
-
-    bot.send_message(
-        user_id,
-        "🚪 Ты вышел из диалога"
-    )
-
 # =========================================
 # NEXT
 # =========================================
@@ -952,6 +967,9 @@ def report(message):
 def next_chat(message):
 
     user_id = message.chat.id
+
+    if str(user_id) in user_states:
+        del user_states[str(user_id)]
 
     if user_id in waiting_users:
         waiting_users.remove(user_id)
@@ -980,6 +998,9 @@ def next_chat(message):
 def stop_chat(message):
 
     user_id = message.chat.id
+
+    if str(user_id) in user_states:
+        del user_states[str(user_id)]
 
     if user_id in waiting_users:
         waiting_users.remove(user_id)
@@ -1090,7 +1111,7 @@ def relay(message):
         )
 
 # =========================================
-# RUN
+# RUN BOT
 # =========================================
 
 def run_bot():
@@ -1110,7 +1131,7 @@ threading.Thread(
 ).start()
 
 # =========================================
-# FLASK
+# RUN FLASK
 # =========================================
 
 port = int(os.environ.get("PORT", 10000))
