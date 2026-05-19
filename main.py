@@ -212,10 +212,6 @@ def register(message):
 
     state = user_states[user_id]
 
-    # =====================================
-    # GENDER
-    # =====================================
-
     if state == "gender":
 
         text = message.text.lower()
@@ -241,10 +237,6 @@ def register(message):
             "М / Ж / Л"
         )
 
-    # =====================================
-    # SEARCH
-    # =====================================
-
     elif state == "search":
 
         text = message.text.lower()
@@ -268,10 +260,6 @@ def register(message):
             message.chat.id,
             "🎂 Напиши возраст"
         )
-
-    # =====================================
-    # AGE
-    # =====================================
 
     elif state == "age":
 
@@ -308,10 +296,6 @@ def register(message):
             reply_markup=skip_markup()
         )
 
-    # =====================================
-    # BIO
-    # =====================================
-
     elif state == "bio":
 
         if message.text == "↩️ Назад":
@@ -342,10 +326,6 @@ def register(message):
             message.chat.id,
             "📸 Отправь фото профиля"
         )
-
-    # =====================================
-    # EDIT BIO
-    # =====================================
 
     elif state == "edit_bio":
 
@@ -415,8 +395,6 @@ def photo_handler(message):
 
     user_id = str(message.chat.id)
 
-    # REGISTER PHOTO
-
     if user_id in user_states:
 
         if user_states[user_id] == "photo":
@@ -434,8 +412,6 @@ def photo_handler(message):
             )
 
             return
-
-    # CHAT PHOTO
 
     if message.chat.id in chat_pairs:
 
@@ -531,7 +507,7 @@ def delete_profile(message):
     )
 
 # =========================================
-# MY MATCHES
+# MATCHES
 # =========================================
 
 @bot.message_handler(
@@ -624,11 +600,25 @@ def online(message):
 
     online_count = len(waiting_users)
 
+    now = int(time.time())
+
+    month_users = 0
+
+    for uid in users:
+
+        created = users[uid].get("created", now)
+
+        if now - created <= 30 * 24 * 60 * 60:
+
+            month_users += 1
+
     bot.send_message(
         message.chat.id,
-        f"👥 Пользователей: {len(users)}\n"
+        f"🔥 Статистика Match\n\n"
+        f"👥 Всего пользователей: {len(users)}\n"
+        f"📅 За месяц: {month_users}\n"
         f"🟢 Онлайн: {online_count}\n"
-        f"💬 Чатов: {len(chat_pairs)//2}"
+        f"💬 Активных чатов: {len(chat_pairs)//2}"
     )
 
 # =========================================
@@ -795,132 +785,6 @@ def like(message):
         message.chat.id,
         "❤️ Лайк отправлен"
     )
-
-    # MATCH
-
-    if (
-        user_id in likes
-        and partner in likes[user_id]
-    ):
-
-        save_match(user_id, partner)
-        save_match(partner, user_id)
-
-        user_data = users[user_id]
-        partner_data = users[partner]
-
-        user_info = bot.get_chat(int(user_id))
-        partner_info = bot.get_chat(int(partner))
-
-        user_link = (
-            f"https://t.me/{user_info.username}"
-            if user_info.username
-            else None
-        )
-
-        partner_link = (
-            f"https://t.me/{partner_info.username}"
-            if partner_info.username
-            else None
-        )
-
-        markup1 = types.InlineKeyboardMarkup()
-
-        if partner_link:
-
-            btn1 = types.InlineKeyboardButton(
-                "💬 Открыть Telegram",
-                url=partner_link
-            )
-
-            markup1.add(btn1)
-
-        else:
-
-            btn1 = types.InlineKeyboardButton(
-                "❌ Нет username",
-                callback_data="none"
-            )
-
-            btn1_2 = types.InlineKeyboardButton(
-                "🆔 ID: " + partner,
-                callback_data="none"
-            )
-
-            markup1.add(btn1)
-            markup1.add(btn1_2)
-
-        markup2 = types.InlineKeyboardMarkup()
-
-        if user_link:
-
-            btn2 = types.InlineKeyboardButton(
-                "💬 Открыть Telegram",
-                url=user_link
-            )
-
-            markup2.add(btn2)
-
-        else:
-
-            btn2 = types.InlineKeyboardButton(
-                "❌ Нет username",
-                callback_data="none"
-            )
-
-            btn2_2 = types.InlineKeyboardButton(
-                "🆔 ID: " + user_id,
-                callback_data="none"
-            )
-
-            markup2.add(btn2)
-            markup2.add(btn2_2)
-
-        text1 = (
-            f"💘 У вас MATCH!\n\n"
-            f"Возраст: {partner_data['age']}\n"
-            f"{partner_data['bio']}"
-        )
-
-        text2 = (
-            f"💘 У вас MATCH!\n\n"
-            f"Возраст: {user_data['age']}\n"
-            f"{user_data['bio']}"
-        )
-
-        if partner_data["photo"]:
-
-            bot.send_photo(
-                int(user_id),
-                partner_data["photo"],
-                caption=text1,
-                reply_markup=markup1
-            )
-
-        else:
-
-            bot.send_message(
-                int(user_id),
-                text1,
-                reply_markup=markup1
-            )
-
-        if user_data["photo"]:
-
-            bot.send_photo(
-                int(partner),
-                user_data["photo"],
-                caption=text2,
-                reply_markup=markup2
-            )
-
-        else:
-
-            bot.send_message(
-                int(partner),
-                text2,
-                reply_markup=markup2
-            )
 
 # =========================================
 # REPORT
@@ -1118,25 +982,36 @@ def run_bot():
 
     print("MATCH STARTED")
 
-    bot.infinity_polling(
-        skip_pending=True
+    while True:
+
+        try:
+
+            bot.infinity_polling(
+                skip_pending=True,
+                timeout=30,
+                long_polling_timeout=30
+            )
+
+        except Exception as e:
+
+            print("ERROR:", e)
+
+            time.sleep(5)
+
+# =========================================
+# START
+# =========================================
+
+if __name__ == "__main__":
+
+    threading.Thread(
+        target=run_bot,
+        daemon=True
+    ).start()
+
+    port = int(os.environ.get("PORT", 10000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port
     )
-
-# =========================================
-# THREAD
-# =========================================
-
-threading.Thread(
-    target=run_bot
-).start()
-
-# =========================================
-# RUN FLASK
-# =========================================
-
-port = int(os.environ.get("PORT", 10000))
-
-app.run(
-    host="0.0.0.0",
-    port=port
-)
