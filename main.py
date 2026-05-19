@@ -1,6 +1,6 @@
 # =========================================
 # MATCH TELEGRAM BOT
-# FULL UPGRADED VERSION
+# FULL STABLE VERSION
 # =========================================
 
 import telebot
@@ -115,7 +115,7 @@ def menu():
     return markup
 
 # =========================================
-# SKIP BUTTON
+# SKIP MARKUP
 # =========================================
 
 def skip_markup():
@@ -125,6 +125,8 @@ def skip_markup():
     )
 
     markup.add("⏭ Пропустить")
+
+    markup.add("↩️ Назад")
 
     return markup
 
@@ -296,6 +298,18 @@ def register(message):
 
     elif state == "bio":
 
+        if message.text == "↩️ Назад":
+
+            del user_states[user_id]
+
+            bot.send_message(
+                message.chat.id,
+                "↩️ Возврат в меню",
+                reply_markup=menu()
+            )
+
+            return
+
         if message.text == "⏭ Пропустить":
 
             users[user_id]["bio"] = "Нет описания"
@@ -311,6 +325,48 @@ def register(message):
         bot.send_message(
             message.chat.id,
             "📸 Отправь фото профиля"
+        )
+
+    # =====================================
+    # EDIT BIO
+    # =====================================
+
+    elif state == "edit_bio":
+
+        if message.text == "↩️ Назад":
+
+            del user_states[user_id]
+
+            bot.send_message(
+                message.chat.id,
+                "↩️ Возврат в меню",
+                reply_markup=menu()
+            )
+
+            return
+
+        if message.text == "⏭ Пропустить":
+
+            del user_states[user_id]
+
+            bot.send_message(
+                message.chat.id,
+                "❌ Изменение отменено",
+                reply_markup=menu()
+            )
+
+            return
+
+        users[user_id]["bio"] = message.text[:300]
+
+        save_users(users)
+
+        del user_states[user_id]
+
+        bot.send_message(
+            message.chat.id,
+            "✅ Описание обновлено",
+            reply_markup=menu()
         )
 
 # =========================================
@@ -410,12 +466,12 @@ def edit_profile(message):
 
     user_id = str(message.chat.id)
 
-    user_states[user_id] = "bio"
+    user_states[user_id] = "edit_bio"
 
     bot.send_message(
         message.chat.id,
         "📝 Напиши новое описание\n\n"
-        "Или ⏭ Пропустить",
+        "Или нажми ⏭ Пропустить",
         reply_markup=skip_markup()
     )
 
@@ -488,6 +544,21 @@ def my_matches(message):
                 )
 
                 markup.add(btn)
+
+            else:
+
+                btn = types.InlineKeyboardButton(
+                    "❌ Нет username",
+                    callback_data="none"
+                )
+
+                btn2 = types.InlineKeyboardButton(
+                    f"🆔 ID: {partner}",
+                    callback_data="none"
+                )
+
+                markup.add(btn)
+                markup.add(btn2)
 
         except:
             pass
@@ -585,33 +656,54 @@ def search(message):
         chat_pairs[user_id] = partner
         chat_pairs[partner] = user_id
 
-        p = users[str(partner)]
+        user_data = users[str(user_id)]
+        partner_data = users[str(partner)]
 
-        text = (
+        text_for_user = (
             f"💬 Собеседник найден\n\n"
-            f"Возраст: {p['age']}\n"
-            f"{p['bio']}"
+            f"Возраст: {partner_data['age']}\n"
+            f"{partner_data['bio']}"
         )
 
-        if p["photo"]:
+        text_for_partner = (
+            f"💬 Собеседник найден\n\n"
+            f"Возраст: {user_data['age']}\n"
+            f"{user_data['bio']}"
+        )
+
+        # USER
+
+        if partner_data["photo"]:
 
             bot.send_photo(
                 user_id,
-                p["photo"],
-                caption=text
+                partner_data["photo"],
+                caption=text_for_user
             )
 
         else:
 
             bot.send_message(
                 user_id,
-                text
+                text_for_user
             )
 
-        bot.send_message(
-            partner,
-            "💬 Собеседник найден"
-        )
+        # PARTNER
+
+        if user_data["photo"]:
+
+            bot.send_photo(
+                partner,
+                user_data["photo"],
+                caption=text_for_partner
+            )
+
+        else:
+
+            bot.send_message(
+                partner,
+                text_for_partner
+            )
 
         return
 
@@ -690,10 +782,6 @@ def like(message):
         user_info = bot.get_chat(int(user_id))
         partner_info = bot.get_chat(int(partner))
 
-        # =================================
-        # LINKS
-        # =================================
-
         user_link = (
             f"https://t.me/{user_info.username}"
             if user_info.username
@@ -706,10 +794,6 @@ def like(message):
             else None
         )
 
-        # =================================
-        # BUTTONS
-        # =================================
-
         markup1 = types.InlineKeyboardMarkup()
 
         if partner_link:
@@ -720,6 +804,21 @@ def like(message):
             )
 
             markup1.add(btn1)
+
+        else:
+
+            btn1 = types.InlineKeyboardButton(
+                "❌ Нет username",
+                callback_data="none"
+            )
+
+            btn1_2 = types.InlineKeyboardButton(
+                "🆔 ID: " + partner,
+                callback_data="none"
+            )
+
+            markup1.add(btn1)
+            markup1.add(btn1_2)
 
         markup2 = types.InlineKeyboardMarkup()
 
@@ -732,9 +831,20 @@ def like(message):
 
             markup2.add(btn2)
 
-        # =================================
-        # TEXT
-        # =================================
+        else:
+
+            btn2 = types.InlineKeyboardButton(
+                "❌ Нет username",
+                callback_data="none"
+            )
+
+            btn2_2 = types.InlineKeyboardButton(
+                "🆔 ID: " + user_id,
+                callback_data="none"
+            )
+
+            markup2.add(btn2)
+            markup2.add(btn2_2)
 
         text1 = (
             f"💘 У вас MATCH!\n\n"
@@ -747,10 +857,6 @@ def like(message):
             f"Возраст: {user_data['age']}\n"
             f"{user_data['bio']}"
         )
-
-        # =================================
-        # SEND
-        # =================================
 
         if partner_data["photo"]:
 
@@ -809,10 +915,6 @@ def report(message):
     partner = str(chat_pairs[user_id])
 
     users[partner]["reports"] += 1
-
-    # =====================================
-    # AUTO BAN
-    # =====================================
 
     if users[partner]["reports"] >= 5:
 
@@ -962,7 +1064,8 @@ def relay(message):
             "🚫 Жалоба",
             "🗑 Удалить профиль",
             "❌ Выйти",
-            "⏭ Пропустить"
+            "⏭ Пропустить",
+            "↩️ Назад"
         ]
 
         if message.text not in commands:
