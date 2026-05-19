@@ -20,10 +20,6 @@ app = Flask(__name__)
 def home():
     return "Bot is running"
 
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
 # ---------- DATA ----------
 
 waiting_users = []
@@ -498,14 +494,27 @@ def relay(message):
             message.sticker.file_id
         )
 
-# ---------- START ----------
+# ---------- RUN BOT ----------
 
-print("BOT STARTED")
+def run_bot():
+
+    print("BOT STARTED")
+
+    bot.infinity_polling(
+        skip_pending=True
+    )
+
+# ---------- START THREAD ----------
 
 threading.Thread(
-    target=run_web
+    target=run_bot
 ).start()
 
-bot.infinity_polling(
-    skip_pending=True
+# ---------- RUN FLASK ----------
+
+port = int(os.environ.get("PORT", 10000))
+
+app.run(
+    host="0.0.0.0",
+    port=port
 )
