@@ -1,3 +1,8 @@
+# =========================================
+# MATCH TELEGRAM BOT
+# FULL UPGRADED VERSION
+# =========================================
+
 import telebot
 from telebot import types
 from flask import Flask
@@ -5,12 +10,15 @@ import threading
 import os
 import json
 import time
+import random
 
 TOKEN = os.getenv("TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
 
-# ---------------- FLASK ----------------
+# =========================================
+# FLASK
+# =========================================
 
 app = Flask(__name__)
 
@@ -18,7 +26,9 @@ app = Flask(__name__)
 def home():
     return "Match is running"
 
-# ---------------- DATA ----------------
+# =========================================
+# DATA
+# =========================================
 
 DATA_FILE = "users.json"
 
@@ -29,16 +39,21 @@ user_states = {}
 spam_control = {}
 
 likes = {}
+matches = {}
 
-# ---------------- LOAD ----------------
+# =========================================
+# LOAD
+# =========================================
 
 def load_users():
 
     try:
+
         with open(DATA_FILE, "r") as f:
             return json.load(f)
 
     except:
+
         return {}
 
 def save_users(data):
@@ -48,7 +63,24 @@ def save_users(data):
 
 users = load_users()
 
-# ---------------- MENU ----------------
+# =========================================
+# SAVE MATCH
+# =========================================
+
+def save_match(user1, user2):
+
+    user1 = str(user1)
+    user2 = str(user2)
+
+    if user1 not in matches:
+        matches[user1] = []
+
+    if user2 not in matches[user1]:
+        matches[user1].append(user2)
+
+# =========================================
+# MENU
+# =========================================
 
 def menu():
 
@@ -69,13 +101,36 @@ def menu():
     )
 
     markup.add(
-        "🚫 Жалоба",
-        "❌ Выйти"
+        "🔥 Мои MATCH",
+        "✏️ Изменить"
     )
+
+    markup.add(
+        "🚫 Жалоба",
+        "🗑 Удалить профиль"
+    )
+
+    markup.add("❌ Выйти")
 
     return markup
 
-# ---------------- START ----------------
+# =========================================
+# SKIP BUTTON
+# =========================================
+
+def skip_markup():
+
+    markup = types.ReplyKeyboardMarkup(
+        resize_keyboard=True
+    )
+
+    markup.add("⏭ Пропустить")
+
+    return markup
+
+# =========================================
+# START
+# =========================================
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -85,13 +140,17 @@ def start(message):
     if user_id not in users:
 
         users[user_id] = {
+
             "gender": "",
             "search": "",
             "age": "",
             "bio": "",
             "photo": "",
             "likes": 0,
-            "reports": 0
+            "reports": 0,
+            "banned": False,
+            "created": int(time.time())
+
         }
 
         save_users(users)
@@ -107,13 +166,24 @@ def start(message):
 
     else:
 
+        if users[user_id]["banned"]:
+
+            bot.send_message(
+                message.chat.id,
+                "🚫 Твой аккаунт заблокирован"
+            )
+
+            return
+
         bot.send_message(
             message.chat.id,
             "🔥 С возвращением в Match",
             reply_markup=menu()
         )
 
-# ---------------- REGISTER ----------------
+# =========================================
+# REGISTER
+# =========================================
 
 @bot.message_handler(
     func=lambda m: str(m.chat.id) in user_states
@@ -124,7 +194,9 @@ def register(message):
 
     state = user_states[user_id]
 
-    # -------- GENDER --------
+    # =====================================
+    # GENDER
+    # =====================================
 
     if state == "gender":
 
@@ -151,7 +223,9 @@ def register(message):
             "М / Ж / Л"
         )
 
-    # -------- SEARCH --------
+    # =====================================
+    # SEARCH
+    # =====================================
 
     elif state == "search":
 
@@ -177,7 +251,9 @@ def register(message):
             "🎂 Напиши возраст"
         )
 
-    # -------- AGE --------
+    # =====================================
+    # AGE
+    # =====================================
 
     elif state == "age":
 
@@ -209,14 +285,24 @@ def register(message):
 
         bot.send_message(
             message.chat.id,
-            "📝 Напиши описание о себе"
+            "📝 Напиши описание\n\n"
+            "Или нажми ⏭ Пропустить",
+            reply_markup=skip_markup()
         )
 
-    # -------- BIO --------
+    # =====================================
+    # BIO
+    # =====================================
 
     elif state == "bio":
 
-        users[user_id]["bio"] = message.text[:300]
+        if message.text == "⏭ Пропустить":
+
+            users[user_id]["bio"] = "Нет описания"
+
+        else:
+
+            users[user_id]["bio"] = message.text[:300]
 
         save_users(users)
 
@@ -227,16 +313,18 @@ def register(message):
             "📸 Отправь фото профиля"
         )
 
-# ---------------- PHOTO REGISTER ----------------
+# =========================================
+# PHOTO
+# =========================================
 
-@bot.message_handler(
-    content_types=["photo"]
-)
+@bot.message_handler(content_types=["photo"])
 def photo_handler(message):
 
     user_id = str(message.chat.id)
 
-    # ----- регистрация -----
+    # =====================================
+    # REGISTER PHOTO
+    # =====================================
 
     if user_id in user_states:
 
@@ -256,7 +344,9 @@ def photo_handler(message):
 
             return
 
-    # ----- чат -----
+    # =====================================
+    # CHAT PHOTO
+    # =====================================
 
     if message.chat.id in chat_pairs:
 
@@ -268,7 +358,9 @@ def photo_handler(message):
             caption=message.caption
         )
 
-# ---------------- PROFILE ----------------
+# =========================================
+# PROFILE
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "👤 Профиль"
@@ -288,6 +380,7 @@ def profile(message):
         f"Возраст: {user['age']}\n"
         f"Описание: {user['bio']}\n\n"
         f"❤️ Лайки: {user['likes']}\n"
+        f"💘 MATCH: {len(matches.get(user_id, []))}\n"
         f"🚫 Жалобы: {user['reports']}"
     )
 
@@ -306,20 +399,137 @@ def profile(message):
             text
         )
 
-# ---------------- ONLINE ----------------
+# =========================================
+# EDIT PROFILE
+# =========================================
+
+@bot.message_handler(
+    func=lambda m: m.text == "✏️ Изменить"
+)
+def edit_profile(message):
+
+    user_id = str(message.chat.id)
+
+    user_states[user_id] = "bio"
+
+    bot.send_message(
+        message.chat.id,
+        "📝 Напиши новое описание\n\n"
+        "Или ⏭ Пропустить",
+        reply_markup=skip_markup()
+    )
+
+# =========================================
+# DELETE PROFILE
+# =========================================
+
+@bot.message_handler(
+    func=lambda m: m.text == "🗑 Удалить профиль"
+)
+def delete_profile(message):
+
+    user_id = str(message.chat.id)
+
+    if user_id in users:
+
+        del users[user_id]
+
+        save_users(users)
+
+    bot.send_message(
+        message.chat.id,
+        "🗑 Профиль удалён"
+    )
+
+# =========================================
+# MY MATCHES
+# =========================================
+
+@bot.message_handler(
+    func=lambda m: m.text == "🔥 Мои MATCH"
+)
+def my_matches(message):
+
+    user_id = str(message.chat.id)
+
+    if user_id not in matches:
+
+        bot.send_message(
+            message.chat.id,
+            "❌ У тебя пока нет MATCH"
+        )
+
+        return
+
+    for partner in matches[user_id]:
+
+        if partner not in users:
+            continue
+
+        p = users[partner]
+
+        text = (
+            f"💘 MATCH\n\n"
+            f"Возраст: {p['age']}\n"
+            f"{p['bio']}"
+        )
+
+        markup = types.InlineKeyboardMarkup()
+
+        try:
+
+            info = bot.get_chat(int(partner))
+
+            if info.username:
+
+                btn = types.InlineKeyboardButton(
+                    "💬 Открыть Telegram",
+                    url=f"https://t.me/{info.username}"
+                )
+
+                markup.add(btn)
+
+        except:
+            pass
+
+        if p["photo"]:
+
+            bot.send_photo(
+                message.chat.id,
+                p["photo"],
+                caption=text,
+                reply_markup=markup
+            )
+
+        else:
+
+            bot.send_message(
+                message.chat.id,
+                text,
+                reply_markup=markup
+            )
+
+# =========================================
+# ONLINE
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "📊 Онлайн"
 )
 def online(message):
 
+    online_count = len(waiting_users)
+
     bot.send_message(
         message.chat.id,
         f"👥 Пользователей: {len(users)}\n"
-        f"💬 Активных чатов: {len(chat_pairs)//2}"
+        f"🟢 Онлайн: {online_count}\n"
+        f"💬 Чатов: {len(chat_pairs)//2}"
     )
 
-# ---------------- COMPATIBLE ----------------
+# =========================================
+# COMPATIBLE
+# =========================================
 
 def compatible(user1, user2):
 
@@ -331,7 +541,9 @@ def compatible(user1, user2):
 
     return u1["search"] == u2["gender"]
 
-# ---------------- SEARCH ----------------
+# =========================================
+# SEARCH
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "🔍 Найти"
@@ -358,6 +570,8 @@ def search(message):
 
         return
 
+    random.shuffle(waiting_users)
+
     while waiting_users:
 
         partner = waiting_users.pop(0)
@@ -375,7 +589,6 @@ def search(message):
 
         text = (
             f"💬 Собеседник найден\n\n"
-            f"Пол: {p['gender']}\n"
             f"Возраст: {p['age']}\n"
             f"{p['bio']}"
         )
@@ -409,7 +622,9 @@ def search(message):
         "🔎 Ищем собеседника..."
     )
 
-# ---------------- LIKE ----------------
+# =========================================
+# LIKE
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "❤️ Лайк"
@@ -422,7 +637,7 @@ def like(message):
 
         bot.send_message(
             message.chat.id,
-            "❌ Лайк доступен только во время общения"
+            "❌ Лайк только в чате"
         )
 
         return
@@ -436,7 +651,7 @@ def like(message):
 
         bot.send_message(
             message.chat.id,
-            "⚠️ Ты уже отправил лайк"
+            "⚠️ Уже лайкал"
         )
 
         return
@@ -457,24 +672,123 @@ def like(message):
         "❤️ Лайк отправлен"
     )
 
-    # ----- взаимный лайк -----
+    # =====================================
+    # MATCH
+    # =====================================
 
     if (
         user_id in likes
         and partner in likes[user_id]
     ):
 
-        bot.send_message(
-            int(user_id),
-            "💘 Взаимная симпатия!"
+        save_match(user_id, partner)
+        save_match(partner, user_id)
+
+        user_data = users[user_id]
+        partner_data = users[partner]
+
+        user_info = bot.get_chat(int(user_id))
+        partner_info = bot.get_chat(int(partner))
+
+        # =================================
+        # LINKS
+        # =================================
+
+        user_link = (
+            f"https://t.me/{user_info.username}"
+            if user_info.username
+            else None
         )
 
-        bot.send_message(
-            int(partner),
-            "💘 Взаимная симпатия!"
+        partner_link = (
+            f"https://t.me/{partner_info.username}"
+            if partner_info.username
+            else None
         )
 
-# ---------------- REPORT ----------------
+        # =================================
+        # BUTTONS
+        # =================================
+
+        markup1 = types.InlineKeyboardMarkup()
+
+        if partner_link:
+
+            btn1 = types.InlineKeyboardButton(
+                "💬 Открыть Telegram",
+                url=partner_link
+            )
+
+            markup1.add(btn1)
+
+        markup2 = types.InlineKeyboardMarkup()
+
+        if user_link:
+
+            btn2 = types.InlineKeyboardButton(
+                "💬 Открыть Telegram",
+                url=user_link
+            )
+
+            markup2.add(btn2)
+
+        # =================================
+        # TEXT
+        # =================================
+
+        text1 = (
+            f"💘 У вас MATCH!\n\n"
+            f"Возраст: {partner_data['age']}\n"
+            f"{partner_data['bio']}"
+        )
+
+        text2 = (
+            f"💘 У вас MATCH!\n\n"
+            f"Возраст: {user_data['age']}\n"
+            f"{user_data['bio']}"
+        )
+
+        # =================================
+        # SEND
+        # =================================
+
+        if partner_data["photo"]:
+
+            bot.send_photo(
+                int(user_id),
+                partner_data["photo"],
+                caption=text1,
+                reply_markup=markup1
+            )
+
+        else:
+
+            bot.send_message(
+                int(user_id),
+                text1,
+                reply_markup=markup1
+            )
+
+        if user_data["photo"]:
+
+            bot.send_photo(
+                int(partner),
+                user_data["photo"],
+                caption=text2,
+                reply_markup=markup2
+            )
+
+        else:
+
+            bot.send_message(
+                int(partner),
+                text2,
+                reply_markup=markup2
+            )
+
+# =========================================
+# REPORT
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "🚫 Жалоба"
@@ -487,7 +801,7 @@ def report(message):
 
         bot.send_message(
             user_id,
-            "❌ Жалоба доступна только в чате"
+            "❌ Жалоба только в чате"
         )
 
         return
@@ -495,6 +809,14 @@ def report(message):
     partner = str(chat_pairs[user_id])
 
     users[partner]["reports"] += 1
+
+    # =====================================
+    # AUTO BAN
+    # =====================================
+
+    if users[partner]["reports"] >= 5:
+
+        users[partner]["banned"] = True
 
     save_users(users)
 
@@ -510,15 +832,17 @@ def report(message):
 
     bot.send_message(
         real_partner,
-        "❌ Собеседник завершил диалог"
+        "❌ Диалог завершён"
     )
 
     bot.send_message(
         user_id,
-        "🚪 Диалог завершён"
+        "🚪 Ты вышел из диалога"
     )
 
-# ---------------- NEXT ----------------
+# =========================================
+# NEXT
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "⏭ Следующий"
@@ -544,7 +868,9 @@ def next_chat(message):
 
     search(message)
 
-# ---------------- EXIT ----------------
+# =========================================
+# EXIT
+# =========================================
 
 @bot.message_handler(
     func=lambda m: m.text == "❌ Выйти"
@@ -574,7 +900,9 @@ def stop_chat(message):
         reply_markup=menu()
     )
 
-# ---------------- ANTISPAM ----------------
+# =========================================
+# ANTISPAM
+# =========================================
 
 def anti_spam(user_id):
 
@@ -592,7 +920,9 @@ def anti_spam(user_id):
 
     return len(spam_control[user_id]) > 7
 
-# ---------------- RELAY ----------------
+# =========================================
+# RELAY
+# =========================================
 
 @bot.message_handler(
     content_types=[
@@ -619,8 +949,6 @@ def relay(message):
 
     partner = chat_pairs[user_id]
 
-    # -------- TEXT --------
-
     if message.content_type == "text":
 
         commands = [
@@ -629,8 +957,12 @@ def relay(message):
             "⏭ Следующий",
             "👤 Профиль",
             "📊 Онлайн",
+            "🔥 Мои MATCH",
+            "✏️ Изменить",
             "🚫 Жалоба",
-            "❌ Выйти"
+            "🗑 Удалить профиль",
+            "❌ Выйти",
+            "⏭ Пропустить"
         ]
 
         if message.text not in commands:
@@ -640,16 +972,12 @@ def relay(message):
                 message.text[:1000]
             )
 
-    # -------- VOICE --------
-
     elif message.content_type == "voice":
 
         bot.send_voice(
             partner,
             message.voice.file_id
         )
-
-    # -------- STICKER --------
 
     elif message.content_type == "sticker":
 
@@ -658,7 +986,9 @@ def relay(message):
             message.sticker.file_id
         )
 
-# ---------------- RUN BOT ----------------
+# =========================================
+# RUN
+# =========================================
 
 def run_bot():
 
@@ -668,13 +998,17 @@ def run_bot():
         skip_pending=True
     )
 
-# ---------------- THREAD ----------------
+# =========================================
+# THREAD
+# =========================================
 
 threading.Thread(
     target=run_bot
 ).start()
 
-# ---------------- FLASK ----------------
+# =========================================
+# FLASK
+# =========================================
 
 port = int(os.environ.get("PORT", 10000))
 
