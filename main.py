@@ -1,12 +1,30 @@
 import telebot
 from telebot import types
+from flask import Flask
+import threading
 import os
 import json
 import time
 
+# ---------- TOKEN ----------
+
 TOKEN = os.getenv("TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
+
+# ---------- FLASK ----------
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is running"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# ---------- DATA ----------
 
 waiting_users = []
 chat_pairs = {}
@@ -16,7 +34,7 @@ spam_control = {}
 
 DATA_FILE = "users.json"
 
-# ---------- БАЗА ----------
+# ---------- LOAD USERS ----------
 
 def load_users():
 
@@ -34,7 +52,7 @@ def save_users(data):
 
 users = load_users()
 
-# ---------- КНОПКИ ----------
+# ---------- MENU ----------
 
 def menu():
 
@@ -94,7 +112,7 @@ def start(message):
             reply_markup=menu()
         )
 
-# ---------- РЕГИСТРАЦИЯ ----------
+# ---------- REGISTER ----------
 
 @bot.message_handler(
     func=lambda m: str(m.chat.id) in user_states
@@ -105,7 +123,7 @@ def register(message):
 
     state = user_states[user_id]
 
-    # ----- ПОЛ -----
+    # ----- GENDER -----
 
     if state == "gender":
 
@@ -115,7 +133,7 @@ def register(message):
 
             bot.send_message(
                 message.chat.id,
-                "❌ Напиши только М или Ж"
+                "❌ Напиши М или Ж"
             )
 
             return
@@ -131,7 +149,7 @@ def register(message):
             "🎂 Напиши возраст"
         )
 
-    # ----- ВОЗРАСТ -----
+    # ----- AGE -----
 
     elif state == "age":
 
@@ -139,7 +157,7 @@ def register(message):
 
             bot.send_message(
                 message.chat.id,
-                "❌ Возраст должен быть цифрами"
+                "❌ Возраст цифрами"
             )
 
             return
@@ -150,7 +168,7 @@ def register(message):
 
             bot.send_message(
                 message.chat.id,
-                "❌ Нормальный возраст 10-99"
+                "❌ Возраст 10-99"
             )
 
             return
@@ -167,7 +185,7 @@ def register(message):
             reply_markup=menu()
         )
 
-# ---------- ПРОФИЛЬ ----------
+# ---------- PROFILE ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "👤 Профиль"
@@ -194,7 +212,7 @@ def profile(message):
         text
     )
 
-# ---------- СТАТИСТИКА ----------
+# ---------- STATS ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "📊 Статистика"
@@ -213,7 +231,7 @@ def stats(message):
         text
     )
 
-# ---------- ПОИСК ----------
+# ---------- SEARCH ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "🔍 Найти"
@@ -221,8 +239,6 @@ def stats(message):
 def search(message):
 
     user_id = message.chat.id
-
-    # уже в чате
 
     if user_id in chat_pairs:
 
@@ -233,8 +249,6 @@ def search(message):
 
         return
 
-    # уже ищет
-
     if user_id in waiting_users:
 
         bot.send_message(
@@ -244,13 +258,9 @@ def search(message):
 
         return
 
-    # поиск пары
-
     while waiting_users:
 
         partner = waiting_users.pop(0)
-
-        # защита от самого себя
 
         if partner == user_id:
             continue
@@ -270,8 +280,6 @@ def search(message):
 
         return
 
-    # если никого нет
-
     waiting_users.append(user_id)
 
     bot.send_message(
@@ -279,7 +287,7 @@ def search(message):
         "🔎 Ищем собеседника..."
     )
 
-# ---------- ЛАЙК ----------
+# ---------- LIKE ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "❤️ Лайк"
@@ -310,7 +318,7 @@ def like(message):
         "❤️ Лайк отправлен"
     )
 
-# ---------- ЖАЛОБА ----------
+# ---------- REPORT ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "🚫 Жалоба"
@@ -336,7 +344,7 @@ def report(message):
         "🚫 Жалоба отправлена"
     )
 
-# ---------- СЛЕДУЮЩИЙ ----------
+# ---------- NEXT ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "⏭ Следующий"
@@ -362,7 +370,7 @@ def next_chat(message):
 
     search(message)
 
-# ---------- ВЫХОД ----------
+# ---------- EXIT ----------
 
 @bot.message_handler(
     func=lambda m: m.text == "❌ Выйти"
@@ -392,7 +400,7 @@ def stop_chat(message):
         reply_markup=menu()
     )
 
-# ---------- АНТИСПАМ ----------
+# ---------- ANTISPAM ----------
 
 def anti_spam(user_id):
 
@@ -410,7 +418,7 @@ def anti_spam(user_id):
 
     return len(spam_control[user_id]) > 7
 
-# ---------- СООБЩЕНИЯ ----------
+# ---------- RELAY ----------
 
 @bot.message_handler(
     content_types=[
@@ -438,7 +446,7 @@ def relay(message):
 
     partner = chat_pairs[user_id]
 
-    # ---------- TEXT ----------
+    # ----- TEXT -----
 
     if message.content_type == "text":
 
@@ -462,7 +470,7 @@ def relay(message):
                 message.text
             )
 
-    # ---------- PHOTO ----------
+    # ----- PHOTO -----
 
     elif message.content_type == "photo":
 
@@ -472,7 +480,7 @@ def relay(message):
             caption=message.caption
         )
 
-    # ---------- VOICE ----------
+    # ----- VOICE -----
 
     elif message.content_type == "voice":
 
@@ -481,7 +489,7 @@ def relay(message):
             message.voice.file_id
         )
 
-    # ---------- STICKER ----------
+    # ----- STICKER -----
 
     elif message.content_type == "sticker":
 
@@ -490,9 +498,13 @@ def relay(message):
             message.sticker.file_id
         )
 
-# ---------- START BOT ----------
+# ---------- START ----------
 
 print("BOT STARTED")
+
+threading.Thread(
+    target=run_web
+).start()
 
 bot.infinity_polling(
     skip_pending=True
