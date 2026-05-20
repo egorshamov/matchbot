@@ -11,7 +11,7 @@ from flask import Flask
 # CONFIG
 # =========================================
 
-TOKEN = "TOKEN"
+TOKEN = os.getenv("TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
 
