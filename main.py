@@ -1,3 +1,6 @@
+# FULL STABLE ANON BOT
+# MATCH + PROFILE + RENDER READY
+
 import telebot
 from telebot import types
 
@@ -16,7 +19,7 @@ TOKEN = os.getenv("TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 # =========================================
-# FLASK
+# FLASK + RENDER
 # =========================================
 
 app = Flask(__name__)
@@ -40,7 +43,7 @@ def run_web():
 
 USERS_FILE = "users.json"
 
-def load_users():
+def load_data():
 
     try:
 
@@ -56,7 +59,7 @@ def load_users():
 
         return {}
 
-def save_users():
+def save_data():
 
     data = {
         "users": users,
@@ -77,14 +80,14 @@ def save_users():
             indent=4
         )
 
-data = load_users()
+data = load_data()
 
 users = data.get("users", {})
 likes = data.get("likes", {})
 matches = data.get("matches", {})
 
 # =========================================
-# DATA
+# MEMORY
 # =========================================
 
 user_states = {}
@@ -94,7 +97,7 @@ waiting_users = []
 chat_pairs = {}
 
 # =========================================
-# MENU
+# MENUS
 # =========================================
 
 def menu():
@@ -117,10 +120,6 @@ def menu():
 
     return markup
 
-# =========================================
-# CHAT MENU
-# =========================================
-
 def chat_menu():
 
     markup = types.ReplyKeyboardMarkup(
@@ -139,10 +138,6 @@ def chat_menu():
 
     return markup
 
-# =========================================
-# PROFILE MENU
-# =========================================
-
 def profile_menu():
 
     markup = types.ReplyKeyboardMarkup(
@@ -153,20 +148,9 @@ def profile_menu():
 
     markup.add("📸 Изменить фото")
 
-    markup.add(
-        "🎂 Изменить возраст",
-        "⚧ Изменить пол"
-    )
-
-    markup.add("🔎 Изменить поиск")
-
     markup.add("↩️ Назад")
 
     return markup
-
-# =========================================
-# SKIP
-# =========================================
 
 def skip_markup():
 
@@ -175,8 +159,6 @@ def skip_markup():
     )
 
     markup.add("⏭ Пропустить")
-
-    markup.add("↩️ Назад")
 
     return markup
 
@@ -199,14 +181,14 @@ def start(message):
             "photo": ""
         }
 
-        save_users()
+        save_data()
 
         user_states[user_id] = "gender"
 
         bot.send_message(
             message.chat.id,
             "👋 Добро пожаловать\n\nНапиши М или Ж",
-            reply_markup=skip_markup()
+            reply_markup=types.ReplyKeyboardRemove()
         )
 
     else:
@@ -218,80 +200,13 @@ def start(message):
         )
 
 # =========================================
-# BACK
-# =========================================
-
-@bot.message_handler(
-    func=lambda m: m.text == "↩️ Назад"
-)
-def back(message):
-
-    user_id = str(message.chat.id)
-
-    if user_id in user_states:
-
-        state = user_states[user_id]
-
-        if state == "search":
-
-            user_states[user_id] = "gender"
-
-            bot.send_message(
-                message.chat.id,
-                "↩️ Вернулись назад\n\nНапиши М или Ж"
-            )
-
-            return
-
-        elif state == "age":
-
-            user_states[user_id] = "search"
-
-            bot.send_message(
-                message.chat.id,
-                "↩️ Вернулись назад\n\nМ / Ж / Л"
-            )
-
-            return
-
-        elif state == "bio":
-
-            user_states[user_id] = "age"
-
-            bot.send_message(
-                message.chat.id,
-                "↩️ Вернулись назад\n\nНапиши возраст"
-            )
-
-            return
-
-        elif state == "photo":
-
-            user_states[user_id] = "bio"
-
-            bot.send_message(
-                message.chat.id,
-                "↩️ Вернулись назад\n\nНапиши описание",
-                reply_markup=skip_markup()
-            )
-
-            return
-
-        del user_states[user_id]
-
-    bot.send_message(
-        message.chat.id,
-        "🏠 Главное меню",
-        reply_markup=menu()
-    )
-
-# =========================================
 # STATES
 # =========================================
 
 @bot.message_handler(
     func=lambda m:
-    str(m.chat.id) in user_states
+    str(m.chat.id) in user_states,
+    content_types=["text", "photo"]
 )
 def states(message):
 
@@ -316,13 +231,14 @@ def states(message):
 
         users[user_id]["gender"] = text.upper()
 
-        save_users()
+        save_data()
 
         user_states[user_id] = "search"
 
         bot.send_message(
             message.chat.id,
-            "🔎 Кого ищешь?\n\nМ / Ж / Л"
+            "🔎 Кого ищешь?\n\nМ / Ж / Л",
+            reply_markup=types.ReplyKeyboardRemove()
         )
 
     # SEARCH
@@ -342,13 +258,14 @@ def states(message):
 
         users[user_id]["search"] = text.upper()
 
-        save_users()
+        save_data()
 
         user_states[user_id] = "age"
 
         bot.send_message(
             message.chat.id,
-            "🎂 Напиши возраст"
+            "🎂 Напиши возраст",
+            reply_markup=types.ReplyKeyboardRemove()
         )
 
     # AGE
@@ -377,7 +294,7 @@ def states(message):
 
         users[user_id]["age"] = age
 
-        save_users()
+        save_data()
 
         user_states[user_id] = "bio"
 
@@ -395,7 +312,7 @@ def states(message):
 
             users[user_id]["bio"] = message.text[:300]
 
-            save_users()
+            save_data()
 
         user_states[user_id] = "photo"
 
@@ -413,7 +330,7 @@ def states(message):
 
             users[user_id]["photo"] = ""
 
-            save_users()
+            save_data()
 
             del user_states[user_id]
 
@@ -431,7 +348,7 @@ def states(message):
                 message.photo[-1].file_id
             )
 
-            save_users()
+            save_data()
 
             del user_states[user_id]
 
@@ -439,60 +356,6 @@ def states(message):
                 message.chat.id,
                 "✅ Профиль создан",
                 reply_markup=menu()
-            )
-
-    # EDIT BIO
-
-    elif state == "edit_bio":
-
-        if message.text != "⏭ Пропустить":
-
-            users[user_id]["bio"] = message.text[:300]
-
-            save_users()
-
-        del user_states[user_id]
-
-        bot.send_message(
-            message.chat.id,
-            "✅ Описание изменено",
-            reply_markup=profile_menu()
-        )
-
-    # EDIT PHOTO
-
-    elif state == "edit_photo":
-
-        if message.text == "⏭ Пропустить":
-
-            users[user_id]["photo"] = ""
-
-            save_users()
-
-            del user_states[user_id]
-
-            bot.send_message(
-                message.chat.id,
-                "✅ Фото удалено",
-                reply_markup=profile_menu()
-            )
-
-            return
-
-        if message.photo:
-
-            users[user_id]["photo"] = (
-                message.photo[-1].file_id
-            )
-
-            save_users()
-
-            del user_states[user_id]
-
-            bot.send_message(
-                message.chat.id,
-                "✅ Фото изменено",
-                reply_markup=profile_menu()
             )
 
 # =========================================
@@ -507,12 +370,6 @@ def profile(message):
     user_id = str(message.chat.id)
 
     if user_id not in users:
-
-        bot.send_message(
-            message.chat.id,
-            "❌ Профиль не найден"
-        )
-
         return
 
     user = users[user_id]
@@ -520,12 +377,12 @@ def profile(message):
     username = message.from_user.username
 
     if username:
-        username = f"@{username}"
+        tg = f"@{username}"
     else:
-        username = f"ID: {user_id}"
+        tg = f"tg://user?id={user_id}"
 
     text = (
-        f"{username}\n\n"
+        f"{tg}\n\n"
         f"👤 Пол: {user['gender']}\n"
         f"🔎 Поиск: {user['search']}\n"
         f"🎂 Возраст: {user['age']}\n\n"
@@ -564,7 +421,7 @@ def online(message):
     )
 
 # =========================================
-# EDIT PROFILE
+# EDIT BIO
 # =========================================
 
 @bot.message_handler(
@@ -573,13 +430,17 @@ def online(message):
 )
 def edit_bio(message):
 
-    user_states[str(message.chat.id)] = "edit_bio"
+    user_states[str(message.chat.id)] = "bio"
 
     bot.send_message(
         message.chat.id,
-        "📝 Отправь новое описание",
+        "📝 Новое описание",
         reply_markup=skip_markup()
     )
+
+# =========================================
+# EDIT PHOTO
+# =========================================
 
 @bot.message_handler(
     func=lambda m:
@@ -587,11 +448,11 @@ def edit_bio(message):
 )
 def edit_photo(message):
 
-    user_states[str(message.chat.id)] = "edit_photo"
+    user_states[str(message.chat.id)] = "photo"
 
     bot.send_message(
         message.chat.id,
-        "📸 Отправь новое фото",
+        "📸 Отправь фото",
         reply_markup=skip_markup()
     )
 
@@ -629,9 +490,6 @@ def find_chat(message):
         partner = waiting_users.pop(0)
 
         if partner == user_id:
-
-            waiting_users.append(user_id)
-
             return
 
         chat_pairs[user_id] = partner
@@ -677,7 +535,6 @@ def like_user(message):
     likes.setdefault(partner, [])
 
     if user_id not in likes[partner]:
-
         likes[partner].append(user_id)
 
     likes.setdefault(user_id, [])
@@ -695,19 +552,89 @@ def like_user(message):
         if user_id not in matches[partner]:
             matches[partner].append(user_id)
 
-        save_users()
+        save_data()
 
-        bot.send_message(
-            int(user_id),
-            "🔥 У вас взаимная симпатия!"
-        )
+        p_user = users.get(partner)
 
-        bot.send_message(
-            int(partner),
-            "🔥 У вас взаимная симпатия!"
-        )
+        if p_user:
 
-    save_users()
+            try:
+
+                username = bot.get_chat(int(partner)).username
+
+                if username:
+                    tg = f"@{username}"
+                else:
+                    tg = f"tg://user?id={partner}"
+
+            except:
+
+                tg = f"tg://user?id={partner}"
+
+            text = (
+                f"🔥 MATCH!\n\n"
+                f"👤 Пол: {p_user['gender']}\n"
+                f"🎂 Возраст: {p_user['age']}\n\n"
+                f"📝 {p_user['bio']}\n\n"
+                f"📩 {tg}"
+            )
+
+            if p_user["photo"]:
+
+                bot.send_photo(
+                    int(user_id),
+                    p_user["photo"],
+                    caption=text
+                )
+
+            else:
+
+                bot.send_message(
+                    int(user_id),
+                    text
+                )
+
+        my_user = users.get(user_id)
+
+        if my_user:
+
+            try:
+
+                username = bot.get_chat(int(user_id)).username
+
+                if username:
+                    tg = f"@{username}"
+                else:
+                    tg = f"tg://user?id={user_id}"
+
+            except:
+
+                tg = f"tg://user?id={user_id}"
+
+            text = (
+                f"🔥 MATCH!\n\n"
+                f"👤 Пол: {my_user['gender']}\n"
+                f"🎂 Возраст: {my_user['age']}\n\n"
+                f"📝 {my_user['bio']}\n\n"
+                f"📩 {tg}"
+            )
+
+            if my_user["photo"]:
+
+                bot.send_photo(
+                    int(partner),
+                    my_user["photo"],
+                    caption=text
+                )
+
+            else:
+
+                bot.send_message(
+                    int(partner),
+                    text
+                )
+
+    save_data()
 
     bot.send_message(
         int(user_id),
@@ -725,25 +652,14 @@ def my_matches(message):
 
     user_id = str(message.chat.id)
 
-    if user_id not in matches:
+    if user_id not in matches or not matches[user_id]:
 
         bot.send_message(
             message.chat.id,
-            "❌ У тебя пока нет MATCH"
+            "❌ MATCH пока нет"
         )
 
         return
-
-    if not matches[user_id]:
-
-        bot.send_message(
-            message.chat.id,
-            "❌ У тебя пока нет MATCH"
-        )
-
-        return
-
-    text = "🔥 Твои MATCH:\n\n"
 
     for partner_id in matches[user_id]:
 
@@ -752,20 +668,41 @@ def my_matches(message):
 
         user = users[partner_id]
 
-        text += (
-            f"👤 {user['gender']} | "
-            f"{user['age']} лет\n"
+        try:
+
+            username = bot.get_chat(int(partner_id)).username
+
+            if username:
+                tg = f"@{username}"
+            else:
+                tg = f"tg://user?id={partner_id}"
+
+        except:
+
+            tg = f"tg://user?id={partner_id}"
+
+        text = (
+            f"🔥 MATCH\n\n"
+            f"👤 Пол: {user['gender']}\n"
+            f"🎂 Возраст: {user['age']}\n\n"
+            f"📝 {user['bio']}\n\n"
+            f"📩 {tg}"
         )
 
-        if user["bio"]:
-            text += f"📝 {user['bio']}\n"
+        if user["photo"]:
 
-        text += f"🆔 {partner_id}\n\n"
+            bot.send_photo(
+                message.chat.id,
+                user["photo"],
+                caption=text
+            )
 
-    bot.send_message(
-        message.chat.id,
-        text
-    )
+        else:
+
+            bot.send_message(
+                message.chat.id,
+                text
+            )
 
 # =========================================
 # NEXT
@@ -779,12 +716,6 @@ def next_chat(message):
     user_id = message.chat.id
 
     if user_id not in chat_pairs:
-
-        bot.send_message(
-            message.chat.id,
-            "❌ Ты не в чате"
-        )
-
         return
 
     partner = chat_pairs[user_id]
@@ -814,37 +745,6 @@ def next_chat(message):
     find_chat(message)
 
 # =========================================
-# REPORT
-# =========================================
-
-@bot.message_handler(
-    func=lambda m: m.text == "🚫 Жалоба"
-)
-def report_user(message):
-
-    user_id = message.chat.id
-
-    if user_id not in chat_pairs:
-        return
-
-    partner = chat_pairs[user_id]
-
-    try:
-
-        bot.send_message(
-            partner,
-            "⚠️ На тебя отправили жалобу"
-        )
-
-    except:
-        pass
-
-    bot.send_message(
-        user_id,
-        "🚫 Жалоба отправлена"
-    )
-
-# =========================================
 # EXIT CHAT
 # =========================================
 
@@ -856,12 +756,6 @@ def exit_chat(message):
     user_id = message.chat.id
 
     if user_id not in chat_pairs:
-
-        bot.send_message(
-            message.chat.id,
-            "❌ Ты не в чате"
-        )
-
         return
 
     partner = chat_pairs[user_id]
@@ -889,6 +783,20 @@ def exit_chat(message):
     )
 
 # =========================================
+# REPORT
+# =========================================
+
+@bot.message_handler(
+    func=lambda m: m.text == "🚫 Жалоба"
+)
+def report_user(message):
+
+    bot.send_message(
+        message.chat.id,
+        "🚫 Жалоба отправлена"
+    )
+
+# =========================================
 # DELETE PROFILE
 # =========================================
 
@@ -900,41 +808,21 @@ def delete_profile(message):
 
     user_id = str(message.chat.id)
 
-    if user_id in users:
-        del users[user_id]
+    # CHAT CLEANUP
 
-    if user_id in user_states:
-        del user_states[user_id]
+    if int(user_id) in chat_pairs:
 
-    if int(user_id) in waiting_users:
-        waiting_users.remove(int(user_id))
-
-    if user_id in likes:
-        del likes[user_id]
-
-    if user_id in matches:
-        del matches[user_id]
-
-    partner_to_remove = None
-
-    for u1, u2 in chat_pairs.items():
-
-        if str(u1) == user_id:
-
-            partner_to_remove = u2
-            break
-
-    if partner_to_remove:
+        partner = chat_pairs[int(user_id)]
 
         del chat_pairs[int(user_id)]
 
-        if partner_to_remove in chat_pairs:
-            del chat_pairs[partner_to_remove]
+        if partner in chat_pairs:
+            del chat_pairs[partner]
 
         try:
 
             bot.send_message(
-                partner_to_remove,
+                partner,
                 "❌ Собеседник удалил профиль",
                 reply_markup=menu()
             )
@@ -942,21 +830,53 @@ def delete_profile(message):
         except:
             pass
 
-    save_users()
+    # WAITING CLEANUP
+
+    if int(user_id) in waiting_users:
+        waiting_users.remove(int(user_id))
+
+    # STATE CLEANUP
+
+    if user_id in user_states:
+        del user_states[user_id]
+
+    # USER CLEANUP
+
+    if user_id in users:
+        del users[user_id]
+
+    # LIKES CLEANUP
+
+    if user_id in likes:
+        del likes[user_id]
+
+    # MATCH CLEANUP
+
+    for uid in matches:
+
+        if user_id in matches[uid]:
+
+            try:
+                matches[uid].remove(user_id)
+            except:
+                pass
+
+    if user_id in matches:
+        del matches[user_id]
+
+    save_data()
 
     bot.send_message(
         message.chat.id,
         "🗑 Профиль удалён",
-        reply_markup=menu()
+        reply_markup=types.ReplyKeyboardRemove()
     )
 
 # =========================================
 # TEXT RELAY
 # =========================================
 
-@bot.message_handler(
-    content_types=["text"]
-)
+@bot.message_handler(content_types=["text"])
 def relay_text(message):
 
     user_id = message.chat.id
@@ -988,9 +908,7 @@ def relay_text(message):
 # PHOTO RELAY
 # =========================================
 
-@bot.message_handler(
-    content_types=["photo"]
-)
+@bot.message_handler(content_types=["photo"])
 def relay_photo(message):
 
     user_id = message.chat.id
@@ -1015,9 +933,7 @@ def relay_photo(message):
 # VIDEO RELAY
 # =========================================
 
-@bot.message_handler(
-    content_types=["video"]
-)
+@bot.message_handler(content_types=["video"])
 def relay_video(message):
 
     user_id = message.chat.id
@@ -1042,9 +958,7 @@ def relay_video(message):
 # STICKER RELAY
 # =========================================
 
-@bot.message_handler(
-    content_types=["sticker"]
-)
+@bot.message_handler(content_types=["sticker"])
 def relay_sticker(message):
 
     user_id = message.chat.id
@@ -1068,9 +982,7 @@ def relay_sticker(message):
 # VOICE RELAY
 # =========================================
 
-@bot.message_handler(
-    content_types=["voice"]
-)
+@bot.message_handler(content_types=["voice"])
 def relay_voice(message):
 
     user_id = message.chat.id
